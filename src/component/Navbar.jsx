@@ -26,7 +26,7 @@ const Navbar = () => {
 
   const navbarBackground = isDarkMode
     ? `bg-gradient-to-r from-gray-900 to-gray-800`
-    : `bg-gradient-to-r from-blue-700 to-purple-600`;
+    : `bg-gradient-to-r from-blue-800 to-purple-700`;
 
   const textColor = isDarkMode ? 'text-white' : 'text-white';
 
