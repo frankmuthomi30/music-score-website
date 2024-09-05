@@ -5,6 +5,30 @@ import { firestore } from './firebase-config';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
+const MusicSheetCard = ({ sheet, onPreview }) => (
+  <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+    <h3 className="text-lg font-semibold text-indigo-800 mb-2">{sheet.title}</h3>
+    <p className="text-sm text-gray-600 mb-1">Composer: {sheet.composer}</p>
+    <p className="text-sm text-gray-600 mb-1">Category: {sheet.category}</p>
+    <p className="text-sm text-gray-600 mb-3">Date: {new Date(sheet.timestamp.seconds * 1000).toLocaleDateString()}</p>
+    <div className="flex space-x-2">
+      <button
+        onClick={() => onPreview(sheet)}
+        className="bg-indigo-500 text-white px-3 py-1 rounded-full text-sm hover:bg-indigo-600 transition-colors duration-200 flex items-center"
+      >
+        <Eye size={14} className="mr-1" /> Preview
+      </button>
+      <a
+        href={sheet.fileUrl}
+        download
+        className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm hover:bg-purple-600 transition-colors duration-200 flex items-center"
+      >
+        <Download size={14} className="mr-1" /> Download
+      </a>
+    </div>
+  </div>
+);
+
 const MusicSheetTable = ({ sheets, onPreview }) => (
   <table className="min-w-full bg-white rounded-lg shadow-md">
     <thead>
@@ -147,9 +171,14 @@ const MusicSheetsPage = () => {
           </div>
         ) : (
           <>
-            {/* Music Sheets Table */}
-            <div className="overflow-x-auto">
+            {/* Responsive Layout */}
+            <div className="hidden md:block overflow-x-auto">
               <MusicSheetTable sheets={filteredSheets} onPreview={handlePreview} />
+            </div>
+            <div className="md:hidden">
+              {filteredSheets.map(sheet => (
+                <MusicSheetCard key={sheet.id} sheet={sheet} onPreview={handlePreview} />
+              ))}
             </div>
 
             {/* No Results Found */}

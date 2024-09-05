@@ -13,6 +13,7 @@ const ProfilePage = () => {
   const [composer, setComposer] = useState('');
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deletingScoreId, setDeletingScoreId] = useState(null);
   const [signingOut, setSigningOut] = useState(false);
   const navigate = useNavigate();
 
@@ -102,15 +103,26 @@ const ProfilePage = () => {
     }
   };
 
-  const handleDeleteScore = async (scoreId) => {
-    try {
-      const scoreDocRef = doc(firestore, 'scores', scoreId);
-      await deleteDoc(scoreDocRef);
-      setNotification({ type: 'success', message: 'Score deleted successfully!' });
-    } catch (error) {
-      setNotification({ type: 'error', message: 'Failed to delete score.' });
-      console.error('Error deleting score:', error);
+  const confirmDeleteScore = async () => {
+    if (deletingScoreId) {
+      try {
+        const scoreDocRef = doc(firestore, 'scores', deletingScoreId);
+        await deleteDoc(scoreDocRef);
+        setNotification({ type: 'success', message: 'Score deleted successfully!' });
+        setDeletingScoreId(null);
+      } catch (error) {
+        setNotification({ type: 'error', message: 'Failed to delete score.' });
+        console.error('Error deleting score:', error);
+      }
     }
+  };
+
+  const handleDeleteScore = (scoreId) => {
+    setDeletingScoreId(scoreId); // Open delete confirmation
+  };
+
+  const cancelDeleteScore = () => {
+    setDeletingScoreId(null); // Cancel delete action
   };
 
   const handleSignOut = async () => {
@@ -191,112 +203,61 @@ const ProfilePage = () => {
           ) : uploadedScores.length === 0 ? (
             <p className="text-gray-500">No scores uploaded yet.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Composer</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {uploadedScores.map(score => (
-                    <tr key={score.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{score.title}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{score.composer}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{score.category}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{new Date(score.timestamp.toDate()).toLocaleDateString()}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          {score.fileUrl && (
-                            <a
-                              href={score.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-900 flex items-center"
-                            >
-                              <Eye className="w-4 h-4 mr-1" /> View
-                            </a>
-                          )}
-                          <button
-                            onClick={() => handleEditScore(score.id)}
-                            className="text-yellow-600 hover:text-yellow-900 flex items-center"
-                          >
-                            <Edit2 className="w-4 h-4 mr-1" /> Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteScore(score.id)}
-                            className="text-red-600 hover:text-red-900 flex items-center"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" /> Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Cards for Small Screens */}
+              <div className="grid grid-cols-1 md:hidden gap-4">
+                {uploadedScores.map(score => (
+                  <div key={score.id} className="bg-white shadow-md rounded-lg p-4">
+                    <h3 className="text-lg font-semibold">{score.title}</h3>
+                    <p className="text-gray-500">Composer: {score.composer}</p>
+                    <p className="text-gray-500">Category: {score.category}</p>
+                    <p className="text-gray-500">Uploaded: {new Date(score.timestamp.toDate()).toLocaleDateString()}</p>
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        onClick={() => handleEditScore(score.id)}
+                        className="bg-yellow-400 text-white px-2 py-1 rounded hover:bg-yellow-500 transition-colors flex items-center"
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteScore(score.id)}
+                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors flex items-center"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Modal for Delete Confirmation */}
+              {deletingScoreId && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center">
+                  <div className="bg-white rounded-lg shadow-md p-6 max-w-sm mx-auto">
+                    <h2 className="text-lg font-bold mb-4">Confirm Deletion</h2>
+                    <p>Are you sure you want to delete this score?</p>
+                    <div className="flex justify-end space-x-2 mt-4">
+                      <button
+                        onClick={confirmDeleteScore}
+                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={cancelDeleteScore}
+                        className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
-
-        {/* Edit Score Form */}
-        {editingScoreId && (
-          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-            <h3 className="text-lg font-semibold mb-4">Edit Score</h3>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
-                <input
-                  id="title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                  placeholder="Score title"
-                />
-              </div>
-              <div>
-                <label htmlFor="composer" className="block text-sm font-medium text-gray-700">Composer</label>
-                <input
-                  id="composer"
-                  type="text"
-                  value={composer}
-                  onChange={(e) => setComposer(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                  placeholder="Composer name"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handleSaveEdit}
-              className="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
-            >
-              Save Changes
-            </button>
-          </div>
-        )}
-
-        {/* Notification */}
-        {notification && (
-          <div className={`mt-6 p-4 rounded-md ${
-            notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-          }`}>
-            <p className="font-bold">{notification.type === 'error' ? 'Error' : 'Success'}</p>
-            <p>{notification.message}</p>
-          </div>
-        )}
       </div>
     </div>
   );
