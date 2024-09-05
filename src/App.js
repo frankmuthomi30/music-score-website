@@ -12,7 +12,7 @@ import SignOutPage from './component/SignOutPage';
 import SignInPage from './component/SignInPage';
 import Profile from './component/Profile'; // Import the Profile component
 import { AuthProvider } from './AuthContext'; // Import AuthProvider
-
+import ForgotPasswordPage from './component/ForgotPasswordPage';
 function App() {
   return (
     <AuthProvider>
@@ -26,6 +26,7 @@ function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signout" element={<SignOutPage />} />
+            <Route path="/forgotpassword" element={<ForgotPasswordPage />} />
             <Route path="/profile" element={<Profile />} /> {/* Add the Profile route */}
           </Routes>
           <Footer />

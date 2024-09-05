@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Music, BookOpen, Upload, Info, Sun, Moon, LogIn, LogOut, User } from 'lucide-react';
+import { Menu, X, Music, BookOpen, Upload, Info, Sun, Moon, LogIn,  User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Navbar = () => {
@@ -13,7 +13,6 @@ const Navbar = () => {
     { name: 'Upload', icon: Upload, path: '/upload' },
     { name: 'About', icon: Info, path: '/about' },
     { name: 'Sign In', icon: LogIn, path: '/signin' },
-    { name: 'Sign Out', icon: LogOut, path: '/signout' },
     { name: 'Profile', icon: User, path: '/profile' }  // New Profile item
   ];
 
@@ -27,7 +26,7 @@ const Navbar = () => {
 
   const navbarBackground = isDarkMode
     ? `bg-gradient-to-r from-gray-900 to-gray-800`
-    : `bg-gradient-to-r from-blue-500 to-purple-600`;
+    : `bg-gradient-to-r from-blue-700 to-purple-600`;
 
   const textColor = isDarkMode ? 'text-white' : 'text-white';
 

@@ -28,8 +28,8 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-white to-blue-50">
-      <div className="bg-blue-200 p-8 rounded-lg shadow-lg w-full max-w-sm">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-300">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
         <h2 className="text-3xl font-bold text-blue-800 mb-4">Forgot Password</h2>
         {error && <p className="text-red-600 mb-4">{error}</p>}
         {success && <p className="text-green-600 mb-4">{success}</p>}

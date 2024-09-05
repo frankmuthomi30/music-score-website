@@ -53,8 +53,8 @@ const SignInPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-white to-blue-50">
-      <div className="bg-blue-200 p-8 rounded-lg shadow-lg w-full max-w-sm">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-300">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
         <h2 className="text-3xl font-bold text-blue-800 mb-4">Sign In</h2>
         {error && <p className="text-red-600 mb-4">{error}</p>}
         <form onSubmit={handleSignIn}>
@@ -99,7 +99,7 @@ const SignInPage = () => {
           </div>
         )}
         <p className="mt-4 text-blue-600">
-          <a href="/forgot-password" className="hover:underline">Forgot your password?</a>
+          <a href="/forgotpassword" className="hover:underline">Forgot your password?</a>
         </p>
       </div>
     </div>

@@ -16,10 +16,10 @@ const SignOutPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-blue-100">
-      <div className="bg-blue-200 p-8 rounded-lg shadow-lg w-full max-w-sm text-center">
-        <h2 className="text-3xl font-bold text-blue-800 mb-4">Signed Out</h2>
-        <p className="mb-4 text-blue-700">You have been successfully signed out.</p>
+    <div className="flex items-center justify-center min-h-screen bg-slate-300">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Signed Out</h2>
+        <p className="mb-4 text-gray-900">You have been successfully signed out.</p>
         <button
           onClick={handleSignOut}
           className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300"

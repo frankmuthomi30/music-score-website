@@ -1,149 +1,303 @@
 import React, { useState, useEffect } from 'react';
-import { getAuth, updateProfile } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Link } from 'react-router-dom';
+import { getAuth, signOut } from 'firebase/auth';
+import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { useNavigate } from 'react-router-dom';
+import { Upload, Edit2, Trash2, Eye, User, LogOut, Loader } from 'lucide-react';
 
 const ProfilePage = () => {
-  const [user, setUser] = useState(null);
-  const [profilePic, setProfilePic] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [profilePictureURL, setProfilePictureURL] = useState('');
+  const [uploadedScores, setUploadedScores] = useState([]);
+  const [editingScoreId, setEditingScoreId] = useState(null);
+  const [title, setTitle] = useState('');
+  const [composer, setComposer] = useState('');
+  const [notification, setNotification] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
+  const navigate = useNavigate();
 
   const auth = getAuth();
+  const firestore = getFirestore();
   const storage = getStorage();
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        setDisplayName(currentUser.displayName || '');
-        setProfilePic(currentUser.photoURL || '');
-      } else {
-        setUser(null);
-      }
+    if (auth.currentUser) {
+      fetchProfilePicture();
+      fetchScores();
+    }
+  }, [auth.currentUser]);
+
+  const fetchProfilePicture = async () => {
+    const profilePicRef = ref(storage, `profilePictures/${auth.currentUser.uid}`);
+    try {
+      const url = await getDownloadURL(profilePicRef);
+      setProfilePictureURL(url);
+    } catch (error) {
+      console.error('Failed to fetch profile picture:', error);
+    }
+  };
+
+  const fetchScores = async () => {
+    const q = query(collection(firestore, 'scores'), where('userId', '==', auth.currentUser.uid));
+    onSnapshot(q, (snapshot) => {
+      const scores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUploadedScores(scores);
+      setLoading(false);
+    }, (error) => {
+      console.error('Failed to fetch scores:', error);
+      setLoading(false);
     });
+  };
 
-    return () => unsubscribe();
-  }, [auth]);
-
-  useEffect(() => {
+  const handleProfilePictureChange = async (e) => {
+    const file = e.target.files[0];
     if (file) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
-    }
-  }, [file]);
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) return;
-
-    setUploading(true);
-    const storageRef = ref(storage, `profile_pictures/${file.name}`);
-    try {
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setProfilePic(url);
-      await updateProfile(auth.currentUser, { photoURL: url });
-      alert('Profile picture updated successfully!');
-    } catch (error) {
-      console.error('Error uploading profile picture:', error.message);
-    } finally {
-      setUploading(false);
+      const profilePicRef = ref(storage, `profilePictures/${auth.currentUser.uid}`);
+      try {
+        await uploadBytes(profilePicRef, file);
+        const url = await getDownloadURL(profilePicRef);
+        setProfilePictureURL(url);
+        setNotification({ type: 'success', message: 'Profile picture updated successfully!' });
+      } catch (error) {
+        console.error('Failed to upload profile picture:', error);
+        setNotification({ type: 'error', message: 'Failed to update profile picture.' });
+      }
     }
   };
 
-  const handleUpdateProfile = async () => {
+  const handleRemoveProfilePicture = async () => {
+    const profilePicRef = ref(storage, `profilePictures/${auth.currentUser.uid}`);
     try {
-      await updateProfile(auth.currentUser, { displayName, photoURL: profilePic });
-      alert('Profile updated successfully!');
-      setIsEditing(false);
+      await deleteObject(profilePicRef);
+      setProfilePictureURL('');
+      setNotification({ type: 'success', message: 'Profile picture removed successfully!' });
     } catch (error) {
-      console.error('Error updating profile:', error.message);
+      console.error('Failed to remove profile picture:', error);
+      setNotification({ type: 'error', message: 'Failed to remove profile picture.' });
+    }
+  };
+
+  const handleEditScore = (scoreId) => {
+    setEditingScoreId(scoreId);
+    const score = uploadedScores.find(score => score.id === scoreId);
+    if (score) {
+      setTitle(score.title);
+      setComposer(score.composer);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingScoreId) {
+      try {
+        const scoreDocRef = doc(firestore, 'scores', editingScoreId);
+        await updateDoc(scoreDocRef, { title, composer, updatedAt: new Date() });
+        setNotification({ type: 'success', message: 'Score updated successfully!' });
+        setEditingScoreId(null);
+        setTitle('');
+        setComposer('');
+      } catch (error) {
+        setNotification({ type: 'error', message: 'Failed to update score.' });
+        console.error('Error updating score:', error);
+      }
+    }
+  };
+
+  const handleDeleteScore = async (scoreId) => {
+    try {
+      const scoreDocRef = doc(firestore, 'scores', scoreId);
+      await deleteDoc(scoreDocRef);
+      setNotification({ type: 'success', message: 'Score deleted successfully!' });
+    } catch (error) {
+      setNotification({ type: 'error', message: 'Failed to delete score.' });
+      console.error('Error deleting score:', error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut(auth);
+      setNotification({ type: 'success', message: 'Signed out successfully!' });
+      setTimeout(() => {
+        navigate('/signin');
+      }, 2000);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setNotification({ type: 'error', message: 'Failed to sign out. Please try again.' });
+      setSigningOut(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-blue-100 p-4">
-      {user ? (
-        <>
-          {isEditing ? (
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <div className="flex flex-col items-center mb-4">
-                <img
-                  src={preview || profilePic || 'https://via.placeholder.com/150'}
-                  alt="Profile"
-                  className="w-32 h-32 rounded-full mb-4 border-2 border-gray-300"
-                />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="border p-2 rounded"
-                />
-                <button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="bg-blue-600 text-white py-2 px-4 rounded-lg mt-2 hover:bg-blue-700 transition duration-300"
-                >
-                  {uploading ? 'Uploading...' : 'Upload Image'}
-                </button>
+    <div className="min-h-screen bg-gray-100 p-6 mt-16">
+      <div className="max-w-6xl mx-auto">
+        {/* Profile Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-200">
+                {loading ? (
+                  <div className="w-full h-full bg-gray-300 animate-pulse" />
+                ) : profilePictureURL ? (
+                  <img src={profilePictureURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-full h-full p-4 text-gray-400" />
+                )}
               </div>
-              <div className="mb-4">
-                <label className="block mb-2">Display Name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Display Name"
-                  className="border p-2 rounded w-full"
-                />
+              <div>
+                <h2 className="text-2xl font-bold">{auth.currentUser?.displayName || 'User'}</h2>
+                <p className="text-gray-500">{auth.currentUser?.email}</p>
               </div>
-              <button
-                onClick={handleUpdateProfile}
-                className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300"
-              >
-                Update Profile
-              </button>
-              <button
-                onClick={() => setIsEditing(false)}
-                className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-300 mt-4"
-              >
-                Cancel
-              </button>
             </div>
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className={`bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center ${signingOut ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
+            </button>
+          </div>
+          <div className="flex space-x-2">
+            <label className="cursor-pointer bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors flex items-center">
+              <Upload className="w-4 h-4 mr-2" />
+              Update Picture
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureChange}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={handleRemoveProfilePicture}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Remove Picture
+            </button>
+          </div>
+        </div>
+
+        {/* Scores Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">Uploaded Scores</h2>
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="h-12 bg-gray-300 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : uploadedScores.length === 0 ? (
+            <p className="text-gray-500">No scores uploaded yet.</p>
           ) : (
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-              <div className="flex flex-col items-center mb-4">
-                <img
-                  src={profilePic || 'https://via.placeholder.com/150'}
-                  alt="Profile"
-                  className="w-32 h-32 rounded-full mb-4 border-2 border-gray-300"
-                />
-                <h2 className="text-xl font-bold">{displayName || 'No Name'}</h2>
-              </div>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300"
-              >
-                Edit Profile
-              </button>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Composer</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {uploadedScores.map(score => (
+                    <tr key={score.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{score.title}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{score.composer}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{score.category}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{new Date(score.timestamp.toDate()).toLocaleDateString()}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          {score.fileUrl && (
+                            <a
+                              href={score.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-900 flex items-center"
+                            >
+                              <Eye className="w-4 h-4 mr-1" /> View
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleEditScore(score.id)}
+                            className="text-yellow-600 hover:text-yellow-900 flex items-center"
+                          >
+                            <Edit2 className="w-4 h-4 mr-1" /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteScore(score.id)}
+                            className="text-red-600 hover:text-red-900 flex items-center"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" /> Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-          <Link to="/" className="mt-4 text-blue-500 hover:underline">Back to Home</Link>
-        </>
-      ) : (
-        <p className="text-lg">No user is currently logged in.</p>
-      )}
+        </div>
+
+        {/* Edit Score Form */}
+        {editingScoreId && (
+          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h3 className="text-lg font-semibold mb-4">Edit Score</h3>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
+                <input
+                  id="title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  placeholder="Score title"
+                />
+              </div>
+              <div>
+                <label htmlFor="composer" className="block text-sm font-medium text-gray-700">Composer</label>
+                <input
+                  id="composer"
+                  type="text"
+                  value={composer}
+                  onChange={(e) => setComposer(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                  placeholder="Composer name"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleSaveEdit}
+              className="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
+            >
+              Save Changes
+            </button>
+          </div>
+        )}
+
+        {/* Notification */}
+        {notification && (
+          <div className={`mt-6 p-4 rounded-md ${
+            notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+          }`}>
+            <p className="font-bold">{notification.type === 'error' ? 'Error' : 'Success'}</p>
+            <p>{notification.message}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
