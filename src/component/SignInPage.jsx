@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from './firebase-config'; // Adjust import based on your setup
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import { Circles } from 'react-loader-spinner'; // Import a loader spinner
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './firebase-config'; // Ensure this path is correct for your project structure
+import { useNavigate } from 'react-router-dom';
+import { Circles } from 'react-loader-spinner';
 
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20" className="mr-2">
@@ -17,18 +17,26 @@ const SignInPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false); // Loading state
-  const navigate = useNavigate(); // Initialize useNavigate
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSignIn = async (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
-    setLoading(true); // Set loading to true
+    setLoading(true);
+    setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate('/profile'); // Redirect to profile page
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      navigate('/profile'); // Redirect to profile page upon successful authentication
     } catch (error) {
       console.log(error); // Log full error for debugging
-      if (error.code === 'auth/invalid-email') {
+      if (error.code === 'auth/email-already-in-use') {
+        setError('An account with this email already exists.');
+      } else if (error.code === 'auth/invalid-email') {
         setError('Invalid email address.');
       } else if (error.code === 'auth/user-not-found') {
         setError('No user found with this email.');
@@ -38,7 +46,7 @@ const SignInPage = () => {
         setError('An error occurred. Please try again.');
       }
     } finally {
-      setLoading(false); // Set loading to false after completion
+      setLoading(false);
     }
   };
 
@@ -48,6 +56,7 @@ const SignInPage = () => {
       await signInWithPopup(auth, provider);
       navigate('/profile'); // Redirect to profile page upon successful sign-in
     } catch (error) {
+      console.log(error); // Log full error for debugging
       setError('Failed to sign in with Google. Please try again.');
     }
   };
@@ -55,9 +64,9 @@ const SignInPage = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-300">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
-        <h2 className="text-3xl font-bold text-blue-800 mb-4">Sign In</h2>
+        <h2 className="text-3xl font-bold text-blue-800 mb-4">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
         {error && <p className="text-red-600 mb-4">{error}</p>}
-        <form onSubmit={handleSignIn}>
+        <form onSubmit={handleAuth}>
           <div className="mb-4">
             <label className="block text-blue-700 mb-1">Email</label>
             <input
@@ -81,9 +90,9 @@ const SignInPage = () => {
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300"
-            disabled={loading} // Disable button while loading
+            disabled={loading}
           >
-            Sign In
+            {isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
         <button
@@ -95,11 +104,16 @@ const SignInPage = () => {
         </button>
         {loading && (
           <div className="flex justify-center mt-4">
-            <Circles color="#00BFFF" height={50} width={50} /> {/* Loader spinner */}
+            <Circles color="#00BFFF" height={50} width={50} />
           </div>
         )}
         <p className="mt-4 text-blue-600">
           <a href="/forgotpassword" className="hover:underline">Forgot your password?</a>
+        </p>
+        <p className="mt-2 text-blue-600">
+          <button onClick={() => setIsSignUp(!isSignUp)} className="hover:underline">
+            {isSignUp ? 'Already have an account? Sign In' : 'New user? Create an account'}
+          </button>
         </p>
       </div>
     </div>

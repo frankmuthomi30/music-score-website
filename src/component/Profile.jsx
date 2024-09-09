@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAuth, signOut } from 'firebase/auth';
+import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [deletingScoreId, setDeletingScoreId] = useState(null);
   const [signingOut, setSigningOut] = useState(false);
+
   const navigate = useNavigate();
 
   const auth = getAuth();
@@ -22,11 +23,17 @@ const ProfilePage = () => {
   const storage = getStorage();
 
   useEffect(() => {
-    if (auth.currentUser) {
-      fetchProfilePicture();
-      fetchScores();
-    }
-  }, [auth.currentUser]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchProfilePicture();
+        fetchScores();
+      } else {
+        navigate('/signin');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, navigate]);
 
   const fetchProfilePicture = async () => {
     const profilePicRef = ref(storage, `profilePictures/${auth.currentUser.uid}`);
@@ -103,22 +110,23 @@ const ProfilePage = () => {
     }
   };
 
+  const handleDeleteScore = (scoreId) => {
+    setDeletingScoreId(scoreId);
+  };
+
   const confirmDeleteScore = async () => {
     if (deletingScoreId) {
       try {
         const scoreDocRef = doc(firestore, 'scores', deletingScoreId);
         await deleteDoc(scoreDocRef);
         setNotification({ type: 'success', message: 'Score deleted successfully!' });
-        setDeletingScoreId(null);
       } catch (error) {
         setNotification({ type: 'error', message: 'Failed to delete score.' });
         console.error('Error deleting score:', error);
+      } finally {
+        setDeletingScoreId(null);
       }
     }
-  };
-
-  const handleDeleteScore = (scoreId) => {
-    setDeletingScoreId(scoreId);
   };
 
   const cancelDeleteScore = () => {
@@ -317,7 +325,7 @@ const ProfilePage = () => {
           </div>
         )}
       </div>
-    </div>
+      </div>
   );
 };
 
